@@ -28,7 +28,6 @@ def download_image(image_url, dst_dir, file_name, timeout=20, proxy_type=None, p
             "http": proxy_type + "://" + proxy,
             "https": proxy_type + "://" + proxy
         }
-
     r = None
     file_path = os.path.join(dst_dir, file_name)
     try:

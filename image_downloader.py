@@ -31,6 +31,7 @@ def main(argv):
                         help="Set http proxy (e.g. 192.168.0.2:8080)")
     parser.add_argument("--proxy_socks5", "-ps", type=str, default=None,
                         help="Set socks5 proxy (e.g. 192.168.0.2:1080)")
+    parser.add_argument("--prefix_name", "-pn", type=str, default=None)
 
     args = parser.parse_args(args=argv)
 
@@ -50,7 +51,7 @@ def main(argv):
     downloader.download_images(image_urls=crawled_urls, dst_dir=args.output,
                                concurrency=args.num_threads, timeout=args.timeout,
                                proxy_type=proxy_type, proxy=proxy,
-                               file_prefix=args.engine)
+                               file_prefix=args.prefix_name+args.engine)
 
     print("Finished.")
 
