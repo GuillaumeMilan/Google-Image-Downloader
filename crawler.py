@@ -1,17 +1,22 @@
+""" Crawl image urls from image search engine. """
 # -*- coding: utf-8 -*-
+# author: Yabin Zheng
+# Email: sczhengyabin@hotmail.com
+
 from __future__ import print_function
-from urllib.parse import unquote, quote
-from selenium import webdriver
-from selenium.webdriver import DesiredCapabilities
+
 import re
 import time
 import sys
 import os
 import json
+import codecs
 
-""" Scrape image urls of keywords from Google Image Search """
-
-__author__ = "Yabin Zheng ( sczhengyabin@hotmail.com )"
+from urllib.parse import unquote, quote
+from selenium import webdriver
+from selenium.webdriver import DesiredCapabilities
+import requests
+from concurrent import futures
 
 if getattr(sys, 'frozen', False):
     bundle_dir = sys._MEIPASS
@@ -27,6 +32,12 @@ dcap = dict(DesiredCapabilities.PHANTOMJS)
 dcap["phantomjs.page.settings.userAgent"] = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.100"
 )
+
+
+def my_print(msg, quiet=False):
+    if not quiet:
+        print(msg)
+
 
 def google_gen_query_url(keywords, face_only=False, safe_mode=False):
     base_url = "https://www.google.com/search?tbm=isch&hl=en"
@@ -46,7 +57,7 @@ def google_image_url_from_webpage(driver):
     try:
         show_more = driver.find_element_by_id("smb")
         show_more.click()
-        time.sleep(10)
+        time.sleep(5)
     except Exception as e:
         pass
     image_elements = driver.find_elements_by_class_name("rg_l")
@@ -76,26 +87,25 @@ def bing_image_url_from_webpage(driver):
     image_urls = list()
 
     time.sleep(10)
+    img_count = 0
 
-    image_elements = driver.find_elements_by_class_name("iusc")
+    while True:
+        image_elements = driver.find_elements_by_class_name("iusc")
+        if len(image_elements) > img_count:
+            img_count = len(image_elements)
+            driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);")
+        else:
+            smb = driver.find_elements_by_class_name("btn_seemore")
+            if len(smb) > 0 and smb[0].is_displayed():
+                smb[0].click()
+            else:
+                break
+        time.sleep(3)
     for image_element in image_elements:
         m_json_str = image_element.get_attribute("m")
         m_json = json.loads(m_json_str)
         image_urls.append(m_json["murl"])
-
-    # parents = driver.find_elements_by_class_name("du_g")
-    # image_elements = []
-    # for parent in parents:
-    #     image_elements.append(parent.find_element_by_tag_name("a"))
-    # image_urls = list()
-    # url_pattern = 'imgurl:&quot;\S*&quot;,tid'
-    #
-    # for image_element in image_elements:
-    #     outer_html = image_element.get_attribute("outerHTML")
-    #     re_group = re.search(url_pattern, outer_html)
-    #     if re_group is not None:
-    #         image_url = unquote(re_group.group()[13:-10])
-    #         image_urls.append(image_url)
     return image_urls
 
 
@@ -119,8 +129,82 @@ def baidu_image_url_from_webpage(driver):
     return image_urls
 
 
-def crawl_image_urls(keywords, engine="Google", max_number=0,
-                     face_only=False, safe_mode=False, proxy=None, proxy_type="http"):
+def baidu_get_image_url_using_api(keywords, max_number=10000, face_only=False,
+                                  proxy=None, proxy_type=None):
+    def decode_url(url):
+        in_table = '0123456789abcdefghijklmnopqrstuvw'
+        out_table = '7dgjmoru140852vsnkheb963wtqplifca'
+        translate_table = str.maketrans(in_table, out_table)
+        mapping = {'_z2C$q': ':', '_z&e3B': '.', 'AzdH3F': '/'}
+        for k, v in mapping.items():
+            url = url.replace(k, v)
+        return url.translate(translate_table)
+
+    base_url = "https://image.baidu.com/search/acjson?tn=resultjson_com&ipn=rj&ct=201326592"\
+               "&lm=7&fp=result&ie=utf-8&oe=utf-8&st=-1"
+    keywords_str = "&word={}&queryWord={}".format(
+        quote(keywords), quote(keywords))
+    query_url = base_url + keywords_str
+    query_url += "&face={}".format(1 if face_only else 0)
+
+    init_url = query_url + "&pn=0&rn=30"
+
+    proxies = None
+    if proxy and proxy_type:
+        proxies = {"http": "{}://{}".format(proxy_type, proxy),
+                   "https": "{}://{}".format(proxy_type, proxy)}
+
+    res = requests.get(init_url, proxies=proxies)
+    init_json = json.loads(res.text.replace(r"\'", ""), encoding='utf-8', strict=False)
+    total_num = init_json['listNum']
+
+    target_num = min(max_number, total_num)
+    crawl_num = min(target_num * 2, total_num)
+
+    crawled_urls = list()
+    batch_size = 30
+
+    with futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_list = list()
+
+        def process_batch(batch_no, batch_size):
+            image_urls = list()
+            url = query_url + \
+                "&pn={}&rn={}".format(batch_no * batch_size, batch_size)
+            try_time = 0
+            while True:
+                try:
+                    response = requests.get(url, proxies=proxies)
+                    break
+                except Exception as e:
+                    try_time += 1
+                    if try_time > 3:
+                        print(e)
+                        return image_urls
+            response.encoding = 'utf-8'
+            res_json = json.loads(response.text.replace(r"\'", ""), encoding='utf-8', strict=False)
+            for data in res_json['data']:
+                if 'objURL' in data.keys():
+                    image_urls.append(decode_url(data['objURL']))
+                elif 'replaceUrl' in data.keys() and len(data['replaceUrl']) == 2:
+                    image_urls.append(data['replaceUrl'][1]['ObjURL'])
+
+            return image_urls
+
+        for i in range(0, int((crawl_num + batch_size - 1) / batch_size)):
+            future_list.append(executor.submit(process_batch, i, batch_size))
+        for future in futures.as_completed(future_list):
+            if future.exception() is None:
+                crawled_urls += future.result()
+            else:
+                print(future.exception())
+
+    return crawled_urls[:min(len(crawled_urls), target_num)]
+
+
+def crawl_image_urls(keywords, engine="Google", max_number=10000,
+                     face_only=False, safe_mode=False, proxy=None, 
+                     proxy_type="http", quiet=False, browser="phantomjs"):
     """
     Scrape image urls of keywords from Google Image Search
     :param keywords: keywords you want to search
@@ -133,14 +217,15 @@ def crawl_image_urls(keywords, engine="Google", max_number=0,
     :return: list of scraped image urls
     """
 
-    print("\nScraping From {0} Image Search ...\n".format(engine))
-    print("Keywords:  " + keywords)
+    my_print("\nScraping From {0} Image Search ...\n".format(engine), quiet)
+    my_print("Keywords:  " + keywords, quiet)
     if max_number <= 0:
-        print("Number:  No limit")
+        my_print("Number:  No limit", quiet)
+        max_number = 10000
     else:
-        print("Number:  {}".format(max_number))
-    print("Face Only:  {}".format(str(face_only)))
-    print("Safe Mode:  {}".format(str(safe_mode)))
+        my_print("Number:  {}".format(max_number), quiet)
+    my_print("Face Only:  {}".format(str(face_only)), quiet)
+    my_print("Safe Mode:  {}".format(str(safe_mode)), quiet)
 
     if engine == "Google":
         query_url = google_gen_query_url(keywords, face_only, safe_mode)
@@ -151,25 +236,37 @@ def crawl_image_urls(keywords, engine="Google", max_number=0,
     else:
         return
 
-    print("Query URL:  " + query_url)
+    my_print("Query URL:  " + query_url, quiet)
 
-    phantomjs_args = []
-    if proxy is not None:
-        phantomjs_args = [
-            "--proxy=" + proxy,
-            "--proxy-type=" + proxy_type,
+    if browser == "chrome":
+        chrome_options = webdriver.ChromeOptions()
+        if proxy is not None and proxy_type is not None:
+            chrome_options.add_argument("--proxy-server={}://{}".format(proxy_type, proxy))
+        driver = webdriver.Chrome(executable_path="./chromedriver", chrome_options=chrome_options)
+    else:
+        phantomjs_args = []
+        if proxy is not None and proxy_type is not None:
+            phantomjs_args += [
+                "--proxy=" + proxy,
+                "--proxy-type=" + proxy_type,
             ]
-    driver = webdriver.PhantomJS(executable_path=phantomjs_path,
-                                 service_args=phantomjs_args, desired_capabilities=dcap)
-    driver.set_window_size(10000, 7500)
-    driver.get(query_url)
+        driver = webdriver.PhantomJS(executable_path=phantomjs_path,
+                                     service_args=phantomjs_args, desired_capabilities=dcap)
 
     if engine == "Google":
+        driver.set_window_size(10000, 7500)
+        driver.get(query_url)
         image_urls = google_image_url_from_webpage(driver)
     elif engine == "Bing":
+        driver.set_window_size(1920, 1080)
+        driver.get(query_url)
         image_urls = bing_image_url_from_webpage(driver)
-    elif engine == "Baidu":
-        image_urls = baidu_image_url_from_webpage(driver)
+    else:   # Baidu
+        # driver.set_window_size(10000, 7500)
+        # driver.get(query_url)
+        # image_urls = baidu_image_url_from_webpage(driver)
+        image_urls = baidu_get_image_url_using_api(keywords, max_number=max_number, face_only=face_only,
+                                                   proxy=proxy, proxy_type=proxy_type)
 
     driver.close()
 
@@ -178,6 +275,7 @@ def crawl_image_urls(keywords, engine="Google", max_number=0,
     else:
         output_num = max_number
 
-    print("\n== {0} out of {1} crawled images urls will be used.\n".format(output_num, len(image_urls)))
+    my_print("\n== {0} out of {1} crawled images urls will be used.\n".format(
+        output_num, len(image_urls)), quiet)
 
     return image_urls[0:output_num]

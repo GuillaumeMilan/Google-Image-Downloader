@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
+# author: Yabin Zheng
+# Email: sczhengyabin@hotmail.com
 
 from ui_mainwindow import Ui_MainWindow
 from ui_about import Ui_Dialog_about
 import utils
 
-from PyQt4.Qt import *
-from PyQt4.QtTest import QTest
+from PyQt5.Qt import *
+from PyQt5.QtTest import QTest
 from threading import Thread
 import shlex
 import os
@@ -48,7 +50,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.pushButton_load_file.clicked.connect(
             lambda: self.lineEdit_path2file.setText(QFileDialog.getOpenFileName(
-                self, "Load keywords from file", "./", "Text files (*.txt)")))
+                self, "Load keywords from file", "./", "Text files (*.txt)")[0]))
         self.pushButton_output.clicked.connect(
             lambda: self.lineEdit_output.setText(QFileDialog.getExistingDirectory(
                 self, "Set output directory", "./")))
@@ -67,7 +69,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if log_str.startswith("=="):
                 self.progressBar_current.setMaximum(int(log_str.split()[1]))
             if log_str.startswith("##"):
-                self.progressBar_current.setValue(self.progressBar_current.value() + 1)
+                self.progressBar_current.setValue(
+                    self.progressBar_current.value() + 1)
             log_str = "[" + QTime.currentTime().toString() + "]  " + log_str
             self.plainTextEdit_log.appendPlainText(log_str)
 
@@ -84,7 +87,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elapsed_hour = elapsed_total / 3600
         elapsed_minutes = (elapsed_total % 3600) / 60
         elapsed_secs = elapsed_total % 60
-        str_elapsed_time = "%02d:%02d:%02d" % (elapsed_hour, elapsed_minutes, elapsed_secs)
+        str_elapsed_time = "%02d:%02d:%02d" % (
+            elapsed_hour, elapsed_minutes, elapsed_secs)
         self.label_time_elapsed.setText(str_elapsed_time)
 
     def gen_config_from_ui(self):
@@ -175,7 +179,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.progressBar_current.setValue(0)
             self.progressBar_current.setFormat(keywords + ", %p%, %v/%m")
 
-            thread_download = Thread(target=image_downloader.main, args=[shlex.split(str_paras)])
+            thread_download = Thread(target=image_downloader.main, args=[
+                                     shlex.split(str_paras)])
             thread_download.start()
 
             while thread_download.is_alive():
