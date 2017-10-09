@@ -25,5 +25,5 @@ rm *
 cd $current_dir
 python image_downloader.py --safe-mode "$mot wallpaper" > /dev/null
 gsettings set org.gnome.desktop.background picture-uri file://$current_dir/download_images/Google_0008.jpeg
-#rm -rf .RandomWallPaperByGuignomes
+rm -rf .RandomWallPaperByGuignomes
 exit 0

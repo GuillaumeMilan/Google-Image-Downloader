@@ -7,3 +7,4 @@ npm install phantomjs
 
 current_dir=$(pwd)
 echo "$PATH=$PATH:$current_dir/node_modules/phantomjs/lib/phantom/bin" >> ~/.bashrc
+exit 0
