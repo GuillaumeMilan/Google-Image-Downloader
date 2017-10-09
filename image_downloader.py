@@ -17,7 +17,7 @@ def main(argv):
                         help='Keywords to search. ("in quotes")')
     parser.add_argument("--engine", "-e", type=str, default="Google",
                         help="Image search engine.", choices=["Google", "Bing", "Baidu"])
-    parser.add_argument("--max-number", "-n", type=int, default=9,
+    parser.add_argument("--max-number", "-n", type=int, default=15,
                         help="Max number of images download for the keywords.")
     parser.add_argument("--num-threads", "-j", type=int, default=1,
                         help="Number of threads to concurrently download images.")

@@ -24,6 +24,12 @@ echo "Your word is : $mot"
 rm *
 cd $current_dir
 python image_downloader.py --safe-mode "$mot wallpaper" > /dev/null
-gsettings set org.gnome.desktop.background picture-uri file://$current_dir/download_images/Google_0008.jpeg
+result=$(ls download_images/Google_0008.*)
+if [ $? -eq 2 ] 
+then 
+    echo "Error on downloading the 9th images of Google exiting now!!!"
+    exit 1
+fi 
+gsettings set org.gnome.desktop.background picture-uri file://$current_dir/$result
 rm -rf ~/.RandomWallPaperByGuignomes
 exit 0
