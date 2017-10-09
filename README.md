@@ -1,3 +1,10 @@
+
+#Random WallPaper generator
+For the moment works only on ENSIMAG PC
+installation: `./install.sh`
+```
+usage: ./wallpaper.sh
+```
 # Image Downloader
 
 ### [中文版本点此](https://github.com/sczhengyabin/Image-Downloader/blob/master/README_zh.md)
