@@ -11,8 +11,11 @@ import sys
 import os
 import json
 import codecs
-
-from urllib.parse import unquote, quote
+try:
+    from urllib.parse import unquote, quote
+except ImportError:
+    from urllib import pathname2url as quote
+    from urlparse import unquote
 from selenium import webdriver
 from selenium.webdriver import DesiredCapabilities
 import requests

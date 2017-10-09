@@ -17,9 +17,9 @@ def main(argv):
                         help='Keywords to search. ("in quotes")')
     parser.add_argument("--engine", "-e", type=str, default="Google",
                         help="Image search engine.", choices=["Google", "Bing", "Baidu"])
-    parser.add_argument("--max-number", "-n", type=int, default=100,
+    parser.add_argument("--max-number", "-n", type=int, default=9,
                         help="Max number of images download for the keywords.")
-    parser.add_argument("--num-threads", "-j", type=int, default=50,
+    parser.add_argument("--num-threads", "-j", type=int, default=1,
                         help="Number of threads to concurrently download images.")
     parser.add_argument("--timeout", "-t", type=int, default=20,
                         help="Seconds to timeout when download an image.")
@@ -33,7 +33,7 @@ def main(argv):
                         help="Set http proxy (e.g. 192.168.0.2:8080)")
     parser.add_argument("--proxy_socks5", "-ps", type=str, default=None,
                         help="Set socks5 proxy (e.g. 192.168.0.2:1080)")
-    parser.add_argument("--prefix_name", "-pn", type=str, default=None)
+    parser.add_argument("--prefix_name", "-pn", type=str, default="")
 
     args = parser.parse_args(args=argv)
 
