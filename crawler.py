@@ -46,8 +46,9 @@ def google_gen_query_url(keywords, face_only=False, safe_mode=False):
     base_url = "https://www.google.com/search?tbm=isch&hl=en"
     keywords_str = "&q=" + quote(keywords)
     query_url = base_url + keywords_str
+    query_url += "&tbs=iszw:1920,iszh:1080"
     if face_only is True:
-        query_url += "&tbs=itp:face"
+        query_url += ",itp:face"
     if safe_mode is True:
         query_url += "&safe=on"
     else:
