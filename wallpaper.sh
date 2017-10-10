@@ -23,11 +23,23 @@ mot=$(echo $var | sed -n "s/<\/div>//p")
 echo "Your word is : $mot"
 rm *
 cd $current_dir
+rm download_images/*
 python image_downloader.py --safe-mode "$mot wallpaper" > /dev/null
 result=$(ls download_images/Google_0008.*)
 if [ $? -eq 2 ] 
 then 
-    echo "Error on downloading the 9th images of Google exiting now!!!"
+    for file in download_images/* 
+    do 
+	result=$file
+	if [ $? -ne 2 ] 
+	then 
+	    echo "Choosing the image: $file"
+	    gsettings set org.gnome.desktop.background picture-uri file://$current_dir/$result
+	    rm -rf ~/.RandomWallPaperByGuignomes
+	    exit 0
+	fi 
+    done 
+    echo "Error on downloading the images on Google exiting now!!!"
     exit 1
 fi 
 gsettings set org.gnome.desktop.background picture-uri file://$current_dir/$result
